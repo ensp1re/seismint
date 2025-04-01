@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Coins, ImageIcon, Menu, X, Droplet, Wallet } from "lucide-react"
+import { LayoutDashboard, Coins, ImageIcon, Menu, X, Droplet, Wallet, Sparkles } from "lucide-react"
 import { ReactElement, useState } from "react"
 import { useAccount, useBalance, useNetwork } from "wagmi"
 import { ethers } from "ethers"
@@ -42,6 +42,11 @@ export function Sidebar(): ReactElement {
             icon: ImageIcon,
         },
         {
+            name: "Genesis",
+            path: "/genesis",
+            icon: Sparkles,
+        },
+        {
             name: "Faucet",
             path: "https://faucet-2.seismicdev.net/",
             icon: Droplet,
@@ -55,13 +60,13 @@ export function Sidebar(): ReactElement {
         <>
             <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-seismic-beige border-b border-seismic-sand p-4 flex justify-between items-center">
                 <Link href="/" className="flex items-center">
-                <Image
-                    src="/logo.png"
-                    alt="Seismint Logo"
-                    width={32}
-                    height={32}
-                    className="mr-2"
-                />
+                    <Image
+                        src="/logo.png"
+                        alt="Seismint Logo"
+                        width={32}
+                        height={32}
+                        className="mr-2"
+                    />
                     <span className="text-xl font-bold text-seismic-darkbrown">Seismint</span>
                 </Link>
                 <Button variant="ghost" size="icon" onClick={toggleSidebar} className="text-seismic-darkbrown">
@@ -77,6 +82,13 @@ export function Sidebar(): ReactElement {
             >
                 <div className="p-4 flex justify-between items-center border-b border-seismic-sand md:h-16">
                     <Link href="/" className="flex items-center">
+                        <Image
+                            src="/logo.png"
+                            alt="Seismint Logo"
+                            width={32}
+                            height={32}
+                            className="mr-2 relative -top-[1px]"
+                        />
                         <span className="text-xl font-bold text-seismic-darkbrown">Seismint</span>
                     </Link>
                     <Button variant="ghost" size="icon" onClick={toggleSidebar} className="md:hidden text-seismic-darkbrown">

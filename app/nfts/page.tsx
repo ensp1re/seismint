@@ -1,14 +1,15 @@
-import { ReactElement } from "react";
+import { NFTCollections } from "@/components/NftCollections";
+import { NFTCreator } from "@/components/NftCreator";
 
-export default function NFTsPage(): ReactElement {
+export default function NFTsPage() {
     return (
         <div className="container mx-auto px-4 py-8">
-            <h1 className="text-4xl font-bold mb-8">NFT Creation</h1>
-            <div className="p-8 border border-dashed rounded-lg text-center">
-                <h2 className="text-2xl font-semibold mb-4">Coming Soon</h2>
-                <p className="text-muted-foreground">
-                    Our NFT creation platform is currently under development. Check back soon for updates!
-                </p>
+            <h1 className="text-3xl md:text-4xl font-bold mb-6 text-seismic-darkbrown">Create Your NFT Collection</h1>
+            <p className="text-seismic-brown mb-8">Deploy your own NFT collection on the Seismic blockchain</p>
+
+            <div className="grid grid-cols-1 gap-8">
+                <NFTCreator />
+                <NFTCollections />
             </div>
         </div>
     )
