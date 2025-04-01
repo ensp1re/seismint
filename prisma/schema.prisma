@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Token {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  symbol          String
+  initialSupply   String
+  decimals        Int
+  isMintable      Boolean
+  isBurnable      Boolean
+  isPausable      Boolean
+  ownerAddress    String
+  contractAddress String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Collection {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  symbol            String
+  baseURI           String
+  mintPrice         String
+  ownerAddress      String
+  collectionAddress String
+  collectionId      String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model NFT {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  tokenId      String
+  collectionId String
+  ownerAddress String
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
