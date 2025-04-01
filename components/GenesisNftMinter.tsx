@@ -319,15 +319,7 @@ export function GenesisNFTMinter() {
                         </p>
                     </div>
 
-                    <div className="bg-white/60 rounded-lg border border-seismic-sand p-4">
-                        <h3 className="font-semibold text-seismic-darkbrown mb-2">Benefits</h3>
-                        <ul className="text-seismic-brown text-sm space-y-1">
-                            <li>• Early access to new Seismic features</li>
-                            <li>• Exclusive airdrops for Genesis holders</li>
-                            <li>• Voting rights in Seismic governance</li>
-                            <li>• Special community events and rewards</li>
-                        </ul>
-                    </div>
+                    
                 </div>
             </div>
         </div>
