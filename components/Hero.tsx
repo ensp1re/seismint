@@ -18,6 +18,9 @@ export function Hero(): ReactElement {
                         <p className="mt-4 md:mt-6 text-lg md:text-xl text-seismic-stone max-w-2xl">
                             Create custom ERC20 tokens and NFTs with just a few clicks. No coding required.
                         </p>
+                        <p className="mt-4 md:mt-6 text-lg md:text-xl text-seismic-stone max-w-2xl">
+                            Swap tokens seamlessly and add liquidity to decentralized exchanges effortlessly.
+                        </p>
                         <div className="mt-6 md:mt-10 flex flex-col sm:flex-row gap-4">
                             <Button
                                 asChild

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Coins, ImageIcon, Menu, X, Droplet, Wallet, Sparkles } from "lucide-react"
+import { LayoutDashboard, Coins, ImageIcon, Menu, X, Droplet, Wallet, Sparkles, RefreshCw, Layers } from "lucide-react"
 import { ReactElement, useState } from "react"
 import { useAccount, useBalance, useNetwork } from "wagmi"
 import { ethers } from "ethers"
@@ -47,7 +47,22 @@ export function Sidebar(): ReactElement {
             icon: Sparkles,
         },
         {
+            name: "Swap",
+            path: "/swap",
+            icon: RefreshCw,
+        },
+        {
+            name: "Liquidity",
+            path: "/liquidity",
+            icon: Layers,
+        },
+        {
             name: "Faucet",
+            path: "/faucet",
+            icon: Droplet,
+        },
+        {
+            name: "Seismic Faucet",
             path: "https://faucet-2.seismicdev.net/",
             icon: Droplet,
             external: true,
