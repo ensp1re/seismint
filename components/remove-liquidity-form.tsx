@@ -20,11 +20,12 @@ export function RemoveLiquidityForm() {
     const { isConnected, address } = useAccount()
     const { open } = useWeb3Modal()
     const router = useRouter()
-    const searchParams = useSearchParams()
+    const searchParams = useSearchParams()!
     const [isRemoving, setIsRemoving] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const [tokenASymbol, setTokenASymbol] = useState(searchParams.get("tokenA") || "USDT")
-    const [tokenBSymbol, setTokenBSymbol] = useState(searchParams.get("tokenB") || "USDC")
+    const [tokenASymbol, setTokenASymbol] = useState<string | null>(null)
+    const [tokenBSymbol, setTokenBSymbol] = useState<string | null>(null)
+
     const [percentage, setPercentage] = useState(50)
     const [userLiquidity, setUserLiquidity] = useState("0")
     const [tokenAAmount, setTokenAAmount] = useState("0")
@@ -43,6 +44,15 @@ export function RemoveLiquidityForm() {
     const tokenA = TOKENS[tokenASymbol as keyof typeof TOKENS]
     const tokenB = TOKENS[tokenBSymbol as keyof typeof TOKENS]
 
+
+    useEffect(() => {
+        const tokenA = searchParams.get("tokenA") || "USDT"
+        const tokenB = searchParams.get("tokenB") || "USDC"
+        setTokenASymbol(tokenA)
+        setTokenBSymbol(tokenB)
+    }, [searchParams])
+
+
     // Check network
     useEffect(() => {
         setNetworkError(isConnected && chain?.id !== seismicDevnet.id)
@@ -51,8 +61,8 @@ export function RemoveLiquidityForm() {
     // Update URL when tokens change
     useEffect(() => {
         const params = new URLSearchParams()
-        params.set("tokenA", tokenASymbol)
-        params.set("tokenB", tokenBSymbol)
+        if (tokenASymbol) params.set("tokenA", tokenASymbol)
+        if (tokenBSymbol) params.set("tokenB", tokenBSymbol)
         router.replace(`/liquidity/remove?${params.toString()}`)
     }, [tokenASymbol, tokenBSymbol, router])
 
@@ -270,8 +280,8 @@ export function RemoveLiquidityForm() {
                             </span>
                         </div>
                         <div className="flex gap-2">
-                            <TokenSelector selectedToken={tokenASymbol} onSelectToken={setTokenASymbol} excludeToken={tokenBSymbol} />
-                            <TokenSelector selectedToken={tokenBSymbol} onSelectToken={setTokenBSymbol} excludeToken={tokenASymbol} />
+                            <TokenSelector selectedToken={tokenASymbol!} onSelectToken={setTokenASymbol} excludeToken={tokenBSymbol!} />
+                            <TokenSelector selectedToken={tokenBSymbol!} onSelectToken={setTokenBSymbol} excludeToken={tokenASymbol!} />
                         </div>
                     </div>
 

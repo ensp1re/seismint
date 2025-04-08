@@ -1,4 +1,5 @@
-import { RemoveLiquidityForm } from "@/components/remove-liquidity-form"
+import { Suspense } from "react";
+import { RemoveLiquidityForm } from "@/components/remove-liquidity-form";
 
 export default function RemoveLiquidityPage() {
     return (
@@ -7,8 +8,10 @@ export default function RemoveLiquidityPage() {
             <p className="text-seismic-brown mb-8">Withdraw your tokens from the liquidity pool</p>
 
             <div className="max-w-xl mx-auto">
-                <RemoveLiquidityForm />
+                <Suspense fallback={<div>Loading...</div>}>
+                    <RemoveLiquidityForm />
+                </Suspense>
             </div>
         </div>
-    )
+    );
 }
