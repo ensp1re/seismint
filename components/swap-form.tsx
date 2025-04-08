@@ -18,12 +18,12 @@ import {
 } from "@/lib/contracts/SimpleDex"
 import { TokenSelector } from "@/components/token-selector"
 import { TokenInput } from "@/components/token-input"
-import toast from "react-hot-toast"
-import { TradeHistoryModal } from "./trade-history-modal"
+import { TradeHistoryModal } from "@/components/trade-history-modal"
 import Link from "next/link"
+import toast from "react-hot-toast"
 
 export function SwapForm() {
-    const { isConnected, address } = useAccount()
+    const { isConnected } = useAccount()
     const { open } = useWeb3Modal()
     const [isSwapping, setIsSwapping] = useState(false)
     const [isApproving, setIsApproving] = useState(false)
@@ -38,11 +38,8 @@ export function SwapForm() {
     const [priceImpact, setPriceImpact] = useState("0.00")
     const [exchangeRate, setExchangeRate] = useState("1.00")
     const [showTradeHistory, setShowTradeHistory] = useState(false)
-
-    // Add state for user's liquidity
-    const [userLiquidity, setUserLiquidity] = useState("0")
+    // Add a new state variable to track if the user has liquidity in the pool
     const [hasLiquidity, setHasLiquidity] = useState(false)
-    const [poolExists, setPoolExists] = useState(false)
 
     // Add network check in the component
     const { chain } = useNetwork()
@@ -57,13 +54,17 @@ export function SwapForm() {
         setNetworkError(isConnected && chain?.id !== seismicDevnet.id)
     }, [chain, isConnected])
 
-    // Fetch balances, allowances, and user liquidity
+    // Fetch balances and allowances
     useEffect(() => {
-        if (!isConnected || !window.ethereum || networkError || !address) return
+        if (!isConnected || !window.ethereum || networkError) return
 
+        // Update the fetchData function in the first useEffect to check for user liquidity
         const fetchData = async () => {
             setIsLoading(true)
             try {
+                if (!window.ethereum) {
+                    throw new Error("Ethereum provider is not available");
+                }
                 const provider = new ethers.providers.Web3Provider(window.ethereum as ethers.providers.ExternalProvider)
                 const signer = provider.getSigner()
                 const userAddress = await signer.getAddress()
@@ -73,85 +74,66 @@ export function SwapForm() {
                 const tokenOutContract = getTokenContract(tokenOut.address, provider)
                 const dexContract = getSimpleDexContract(provider)
 
-                // Get balances, allowances, and user's liquidity
-                const [inBalance, outBalance, inAllowance, userLiquidity, pool] = await Promise.all([
+                // Get balances
+                const [inBalance, outBalance, inAllowance, userLiquidity] = await Promise.all([
                     tokenInContract.balanceOf(userAddress),
                     tokenOutContract.balanceOf(userAddress),
                     tokenInContract.allowance(userAddress, dexContract.address),
-                    dexContract.getUserLiquidity(tokenIn.address, tokenOut.address, userAddress),
-                    dexContract.liquidityPools(tokenIn.address, tokenOut.address),
+                    dexContract.liquidity(tokenIn.address, tokenOut.address),
                 ])
 
                 setTokenInBalance(formatTokenAmount(inBalance, tokenIn.decimals))
                 setTokenOutBalance(formatTokenAmount(outBalance, tokenOut.decimals))
                 setTokenInAllowance(formatTokenAmount(inAllowance, tokenIn.decimals))
-
-                // Set user's liquidity and check if they have any
-                const formattedLiquidity = formatTokenAmount(userLiquidity, 18) // LP tokens have 18 decimals
-                setUserLiquidity(formattedLiquidity)
                 setHasLiquidity(userLiquidity.gt(0))
 
-                // Check if pool exists (has reserves)
-                const poolHasLiquidity = pool.tokenAReserve.gt(0) && pool.tokenBReserve.gt(0)
-                setPoolExists(poolHasLiquidity)
-
-                // Get exchange rate if pool exists
-                if (poolHasLiquidity) {
-                    const rate = pool.tokenBReserve.mul(ethers.utils.parseUnits("1", 18)).div(pool.tokenAReserve)
-                    setExchangeRate(ethers.utils.formatUnits(rate, 18))
+                // Get exchange rate
+                try {
+                    const pool = await dexContract.liquidityPools(tokenIn.address, tokenOut.address)
+                    if (pool.tokenAReserve.gt(0) && pool.tokenBReserve.gt(0)) {
+                        const rate = pool.tokenBReserve.mul(ethers.utils.parseUnits("1", 18)).div(pool.tokenAReserve)
+                        setExchangeRate(ethers.utils.formatUnits(rate, 18))
+                    }
+                } catch (error) {
+                    console.error("Error fetching exchange rate:", error)
                 }
             } catch (error) {
                 console.error("Error fetching data:", error)
-                setPoolExists(false)
-                setHasLiquidity(false)
             } finally {
                 setIsLoading(false)
             }
         }
 
         fetchData()
-    }, [isConnected, networkError, tokenIn, tokenOut, address])
+    }, [isConnected, networkError, tokenIn, tokenOut])
 
     // Calculate output amount when input amount changes
     useEffect(() => {
-        if (!tokenInAmount || !isConnected || !window.ethereum || networkError || !poolExists) return
+        if (!tokenInAmount || !isConnected || !window.ethereum || networkError) return
 
         const calculateOutput = async () => {
             try {
+                if (!window.ethereum) {
+                    throw new Error("Ethereum provider is not available");
+                }
                 const provider = new ethers.providers.Web3Provider(window.ethereum as ethers.providers.ExternalProvider)
                 const dexContract = getSimpleDexContract(provider)
 
                 // Get pool reserves
                 const pool = await dexContract.liquidityPools(tokenIn.address, tokenOut.address)
-                console.log(`Pool reserves for ${tokenInSymbol}-${tokenOutSymbol}:`, {
-                    tokenAReserve: pool.tokenAReserve.toString(),
-                    tokenBReserve: pool.tokenBReserve.toString(),
-                })
 
-                // Determine which reserve is for which token based on the token addresses
                 let reserveIn, reserveOut
-
-                // Check if the pool is ordered with tokenA < tokenB
-                if (tokenIn.address.toLowerCase() < tokenOut.address.toLowerCase()) {
-                    // tokenIn is tokenA in the pool
+                if (tokenIn.address < tokenOut.address) {
                     reserveIn = pool.tokenAReserve
                     reserveOut = pool.tokenBReserve
-                    console.log(`${tokenInSymbol} is tokenA, ${tokenOutSymbol} is tokenB`)
                 } else {
-                    // tokenIn is tokenB in the pool
                     reserveIn = pool.tokenBReserve
                     reserveOut = pool.tokenAReserve
-                    console.log(`${tokenInSymbol} is tokenB, ${tokenOutSymbol} is tokenA`)
                 }
 
                 if (reserveIn.gt(0) && reserveOut.gt(0)) {
                     const amountIn = parseTokenAmount(tokenInAmount, tokenIn.decimals)
-                    console.log(`Amount in (${tokenInSymbol}):`, amountIn.toString())
-
-                    // Calculate amount out
                     const amountOut = await dexContract.getAmountOut(amountIn, reserveIn, reserveOut)
-                    console.log(`Amount out (${tokenOutSymbol}):`, amountOut.toString())
-
                     setTokenOutAmount(formatTokenAmount(amountOut, tokenOut.decimals))
 
                     // Calculate price impact
@@ -166,7 +148,7 @@ export function SwapForm() {
         }
 
         calculateOutput()
-    }, [tokenInAmount, tokenIn, tokenOut, isConnected, networkError, poolExists])
+    }, [tokenInAmount, tokenIn, tokenOut, isConnected, networkError])
 
     const handleSwapTokens = () => {
         const tempSymbol = tokenInSymbol
@@ -196,6 +178,9 @@ export function SwapForm() {
         setIsApproving(true)
 
         try {
+            if (!window.ethereum) {
+                throw new Error("Ethereum provider is not available");
+            }
             const provider = new ethers.providers.Web3Provider(window.ethereum as ethers.providers.ExternalProvider)
             const tokenContract = getTokenContract(tokenIn.address, provider)
             const dexContract = getSimpleDexContract(provider)
@@ -213,7 +198,9 @@ export function SwapForm() {
             toast.success(`Successfully approved ${tokenInSymbol} for swapping!`)
         } catch (error) {
             console.error("Error approving token:", error)
-            toast.error(error instanceof Error ? error.message : "There was an error approving the token.")
+            toast.error(
+                error instanceof Error ? error.message : "There was an error approving the token. Please try again.",
+            )
         } finally {
             setIsApproving(false)
         }
@@ -237,21 +224,11 @@ export function SwapForm() {
             return
         }
 
-        if (!poolExists) {
-            toast.error("This pool doesn't exist. Please add liquidity first.")
-            return
-        }
-
-        if (!hasLiquidity) {
-            toast.error("You need to add liquidity to this pool before swapping.")
-            return
-        }
-
         const amountIn = parseTokenAmount(tokenInAmount, tokenIn.decimals)
         const allowance = parseTokenAmount(tokenInAllowance, tokenIn.decimals)
 
         if (amountIn.gt(allowance)) {
-            toast.error(`You need to approve ${tokenInSymbol} before swapping.`)
+            toast.error("Please approve the token before swapping.")
             return
         }
 
@@ -261,14 +238,7 @@ export function SwapForm() {
             const provider = new ethers.providers.Web3Provider(window.ethereum as ethers.providers.ExternalProvider)
             const dexContract = getSimpleDexContract(provider)
 
-            console.log(`Swapping ${amountIn.toString()} ${tokenInSymbol} for ${tokenOutSymbol}`)
-            console.log(`Token addresses: ${tokenIn.address} -> ${tokenOut.address}`)
-
-            // Add gas limit to avoid estimation errors
-            const tx = await dexContract.swapTokens(tokenIn.address, tokenOut.address, amountIn, {
-                gasLimit: 500000, // Set a reasonable gas limit
-            })
-
+            const tx = await dexContract.swapTokens(tokenIn.address, tokenOut.address, amountIn)
             await tx.wait()
 
             // Update balances
@@ -289,23 +259,17 @@ export function SwapForm() {
             setTokenInAmount("")
             setTokenOutAmount("")
 
-            toast.success(`Successfully swapped ${tokenInAmount} ${tokenInSymbol} for ${tokenOutAmount} ${tokenOutSymbol}!`)
+            toast.success(
+                `Successfully swapped ${tokenInAmount} ${tokenInSymbol} for ${formatTokenAmount(
+                    amountIn.mul(parseTokenAmount(exchangeRate, 18)).div(ethers.utils.parseUnits("1", 18)),
+                    tokenOut.decimals,
+                )} ${tokenOutSymbol}!`,
+            )
         } catch (error) {
             console.error("Error swapping tokens:", error)
-
-            // Provide more specific error messages
-            let errorMessage = "There was an error swapping the tokens."
-            if (error instanceof Error) {
-                if (error.message.includes("insufficient")) {
-                    errorMessage = "Insufficient liquidity in the pool for this swap."
-                } else if (error.message.includes("user rejected")) {
-                    errorMessage = "Transaction was rejected."
-                } else {
-                    errorMessage = error.message
-                }
-            }
-
-            toast.error(errorMessage)
+            toast.error(
+                error instanceof Error ? error.message : "There was an error swapping the tokens. Please try again.",
+            )
         } finally {
             setIsSwapping(false)
         }
@@ -317,10 +281,10 @@ export function SwapForm() {
     )
 
     return (
-        <Card className="seismic-card border-seismic-sand p-2">
+        <Card className="seismic-card border-seismic-sand p-8">
             <CardContent className="p-6">
                 {networkError && (
-                    <Alert variant="default" className="mb-6 bg-amber-50 border-amber-200">
+                    <Alert variant="destructive" className="mb-6 bg-amber-50 border-amber-200">
                         <AlertTriangle className="h-4 w-4 text-amber-600" />
                         <AlertTitle className="text-amber-800">Wrong Network</AlertTitle>
                         <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2 text-amber-700">
@@ -337,12 +301,12 @@ export function SwapForm() {
                     </Alert>
                 )}
 
-                {isConnected && !poolExists && !isLoading && (
-                    <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200">
+                {isConnected && !hasLiquidity && !isLoading && (
+                    <Alert className="mb-6 bg-blue-50 border-blue-200">
                         <Info className="h-4 w-4 text-blue-600" />
-                        <AlertTitle className="text-blue-800">Pool Not Found</AlertTitle>
+                        <AlertTitle className="text-blue-800">No Liquidity</AlertTitle>
                         <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2 text-blue-700">
-                            <span>This pool doesn't exist yet. Be the first to add liquidity!</span>
+                            <span>You haven't added liquidity to this pool yet. Add liquidity to enable trading.</span>
                             <Button
                                 asChild
                                 variant="outline"
@@ -355,20 +319,13 @@ export function SwapForm() {
                     </Alert>
                 )}
 
-                {isConnected && poolExists && !hasLiquidity && !isLoading && (
-                    <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200">
-                        <Info className="h-4 w-4 text-blue-600" />
-                        <AlertTitle className="text-blue-800">No Liquidity</AlertTitle>
-                        <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2 text-blue-700">
-                            <span>You need to add liquidity to this pool before swapping.</span>
-                            <Button
-                                asChild
-                                variant="outline"
-                                size="sm"
-                                className="bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200"
-                            >
-                                <Link href={`/liquidity/add?tokenA=${tokenInSymbol}&tokenB=${tokenOutSymbol}`}>Add Liquidity</Link>
-                            </Button>
+                {/* Add a warning message if the user doesn't have liquidity in the pool */}
+                {!hasLiquidity && isConnected && (
+                    <Alert variant="destructive" className="mb-6 bg-amber-50 border-amber-200">
+                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                        <AlertTitle className="text-amber-800">No Liquidity</AlertTitle>
+                        <AlertDescription className="text-amber-700">
+                            You don't have any liquidity in this pool. Consider adding some!
                         </AlertDescription>
                     </Alert>
                 )}
@@ -429,7 +386,7 @@ export function SwapForm() {
                     </div>
 
                     {/* Exchange Rate */}
-                    {tokenInAmount && tokenOutAmount && poolExists && (
+                    {tokenInAmount && tokenOutAmount && (
                         <div className="bg-white/60 rounded-lg border border-seismic-sand p-3 space-y-2">
                             <div className="flex justify-between items-center">
                                 <span className="text-xs text-seismic-stone">Exchange Rate</span>
@@ -451,20 +408,6 @@ export function SwapForm() {
                             onClick={() => open()}
                         >
                             Connect Wallet
-                        </Button>
-                    ) : !poolExists ? (
-                        <Button
-                            asChild
-                            className="w-full bg-gradient-to-r from-seismic-brown to-seismic-darkbrown hover:opacity-90 text-white py-6 text-lg font-medium"
-                        >
-                            <Link href={`/liquidity/add?tokenA=${tokenInSymbol}&tokenB=${tokenOutSymbol}`}>Add Liquidity First</Link>
-                        </Button>
-                    ) : !hasLiquidity ? (
-                        <Button
-                            asChild
-                            className="w-full bg-gradient-to-r from-seismic-brown to-seismic-darkbrown hover:opacity-90 text-white py-6 text-lg font-medium"
-                        >
-                            <Link href={`/liquidity/add?tokenA=${tokenInSymbol}&tokenB=${tokenOutSymbol}`}>Add Liquidity First</Link>
                         </Button>
                     ) : insufficientBalance ? (
                         <Button className="w-full bg-red-500 hover:bg-red-600 text-white py-6 text-lg font-medium" disabled={true}>
@@ -488,7 +431,7 @@ export function SwapForm() {
                     ) : (
                         <Button
                             className="w-full bg-gradient-to-r from-seismic-brown to-seismic-darkbrown hover:opacity-90 text-white py-6 text-lg font-medium"
-                            disabled={isSwapping || !tokenInAmount || !tokenOutAmount}
+                            disabled={isSwapping || !tokenInAmount || !tokenOutAmount || !hasLiquidity}
                             onClick={handleSwap}
                         >
                             {isSwapping ? (
@@ -496,6 +439,8 @@ export function SwapForm() {
                                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                     Swapping...
                                 </>
+                            ) : !hasLiquidity ? (
+                                "Add Liquidity First"
                             ) : (
                                 "Swap"
                             )}

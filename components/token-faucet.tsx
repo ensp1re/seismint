@@ -58,7 +58,7 @@ export function TokenFaucet() {
                         const balance = await tokenContract.balanceOf(userAddress)
                         const timeUntilNextFaucet = await tokenContract.timeUntilNextFaucet(userAddress)
 
-                        balances[symbol] = formatTokenAmount(balance, 18)
+                        balances[symbol] = formatTokenAmount(balance, token.decimals)
                         cooldowns[symbol] = timeUntilNextFaucet.toNumber()
                     } catch (error) {
                         console.error(`Error fetching data for ${symbol}:`, error)
